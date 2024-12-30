@@ -24,6 +24,47 @@
 	let userID = null;
 	let toStudy = [];
 	let message = '';
+	let eligible;
+	function checkEligibility() {
+		userID = getUserIdFromLocalStorage();
+		const data = {
+			userID: userID
+		};
+		fetch('/API/checkMPTestEligibility.php', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(data)
+		})
+			.then((response) => response.json())
+			.then((data) => {
+				if (data.eligible) {
+					console.log('Eligible');
+					eligible = true;
+				} else {
+					console.log('Not eligible');
+					eligible = false;
+				}
+			});
+	}
+	onMount(() => {
+		checkEligibility();
+	});
+
+	function recordAttempt() {
+		userID = getUserIdFromLocalStorage();
+		const data = {
+			userID: userID
+		};
+		fetch('/API/submitMPTestFail.php', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(data)
+		});
+	}
 	function submitAnswers() {
 		score = 0;
 
@@ -52,6 +93,7 @@
 		}
 		if (score < passing) {
 			// alert(`You got ${score} out of ${answers.length} correct!`);
+			recordAttempt();
 			var messagePopover = document.getElementById('messagePopover');
 			message += 'You did not pass the test. Please try again after studying manual sections:';
 			for (let i = 0; i < toStudy.length; i++) {
@@ -125,52 +167,65 @@
 	}
 </script>
 
-<div class="body">
-	<div class="mute">
-		<h2>Motor Pool Test</h2>
-		<div class="questions">
-			{#each questions as { question, choices, correctAnswer }, index}
-				<Question
-					{question}
-					{choices}
-					{index}
-					selectedAnswer={answers[index]}
-					onselectAnswer={(event) => (answers[index] = event.detail)}
-				/>
-				<p class="answer">Answer: {correctAnswer}</p>
-			{/each}
+{#if !eligible}
+	<div class="body">
+		<div class="mute">
+			<h2>Motor Pool Test</h2>
+			<p>You have already taken the test today. Please try again tomorrow.</p>
 		</div>
-		<div class="buttons">
-			{#if !passed}
-				<button on:click={submitAnswers}>Submit</button>
-				<button on:click={reset}>Reset</button>
-				<!-- <button on:click={showAnswers}>Show Me</button> -->
-			{/if}
-			{#if passed}
-				<p>Your score has been submitted. You may close this window now.</p>
-				<!-- <button on:click={reset}>Dev Reset</button> -->
-			{/if}
-
-			{#if confettiCannon}
-				<ConfettiCannon
-					origin={[window.innerWidth / 2, window.innerHeight]}
-					angle={-90}
-					spread={35}
-					force={35}
-				/>
-			{/if}
+		<div class="mute">
+			<a href="/">Return to Dashboard</a>
 		</div>
+	</div>
+{:else}
+	<div class="body">
+		<div class="mute">
+			<h2>Motor Pool Test</h2>
+			<div class="questions">
+				{#each questions as { question, choices, correctAnswer }, index}
+					<Question
+						{question}
+						{choices}
+						{index}
+						selectedAnswer={answers[index]}
+						onselectAnswer={(event) => (answers[index] = event.detail)}
+					/>
+					<p class="answer">Answer: {correctAnswer}</p>
+				{/each}
+			</div>
+			<div class="buttons">
+				{#if !passed}
+					<button on:click={submitAnswers}>Submit</button>
+					<button on:click={reset}>Reset</button>
+					<!-- <button on:click={showAnswers}>Show Me</button> -->
+				{/if}
+				{#if passed}
+					<p>Your score has been submitted. You may close this window now.</p>
+					<!-- <button on:click={reset}>Dev Reset</button> -->
+				{/if}
 
-		<p class="score">Score: {score} of {total}</p>
+				{#if confettiCannon}
+					<ConfettiCannon
+						origin={[window.innerWidth / 2, window.innerHeight]}
+						angle={-90}
+						spread={35}
+						force={35}
+					/>
+				{/if}
+			</div>
+
+			<p class="score">Score: {score} of {total}</p>
+		</div>
 	</div>
-</div>
-<div class="messagePopover" name="messagePopover" id="messagePopover" popover="manual">
-	{message}
-	<div class="arrow">
-		<button on:click={reset} popovertarget="messagePopover" popovertargetaction="hide">Close</button
-		>
+	<div class="messagePopover" name="messagePopover" id="messagePopover" popover="manual">
+		{message}
+		<div class="arrow">
+			<button on:click={reset} popovertarget="messagePopover" popovertargetaction="hide"
+				>Close</button
+			>
+		</div>
 	</div>
-</div>
+{/if}
 
 <style>
 	.body {
